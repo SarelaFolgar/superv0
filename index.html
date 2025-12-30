@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizador de Precios Supermercado</title>
+    
+    <!-- Meta tags para mejor SEO y compatibilidad -->
+    <meta name="description" content="Analiza la evolución de precios de productos de supermercado. Compara marcas, supermercados y ciudades.">
+    <meta name="keywords" content="precios, supermercado, análisis, gráficos, estadísticas, comparativa">
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js con adapter para fechas -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Nuestro CSS -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1><i class="fas fa-chart-line"></i> PriceTracker Super</h1>
+            <p class="subtitle">Analiza la evolución de precios en tiempo real</p>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Pantalla Principal -->
+        <section id="main-screen" class="screen active">
+            <!-- Estadísticas Compactas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <i class="fas fa-shopping-cart"></i>
+                    <h3>Productos</h3>
+                    <p id="total-products">0</p>
+                    <small>Únicos</small>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-store"></i>
+                    <h3>Supermercados</h3>
+                    <p id="total-supermarkets">0</p>
+                    <small>Establecimientos</small>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-city"></i>
+                    <h3>Ciudades</h3>
+                    <p id="total-cities">0</p>
+                    <small>Ubicaciones</small>
+                </div>
+                <div class="stat-card">
+                    <i class="fas fa-calendar-alt"></i>
+                    <h3>Período</h3>
+                    <p id="date-range">-</p>
+                    <small>Rango de fechas</small>
+                </div>
+            </div>
+
+            <!-- Búsqueda -->
+            <div class="search-section">
+                <h2><i class="fas fa-search"></i> Buscar Producto</h2>
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" 
+                               id="product-search" 
+                               placeholder="Ej: lomo adobado, pan, arroz..."
+                               autocomplete="off"
+                               aria-label="Buscar producto">
+                        <button id="search-btn" class="search-button">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                    <div id="suggestions" class="suggestions" role="listbox"></div>
+                    <p class="search-hint">
+                        <i class="fas fa-lightbulb"></i> 
+                        Escribe al menos 2 letras para ver sugerencias
+                    </p>
+                </div>
+            </div>
+
+            <!-- Acciones Rápidas -->
+            <div class="quick-links">
+                <h2><i class="fas fa-bolt"></i> Acciones Rápidas</h2>
+                <div class="links-grid">
+                    <button class="link-card" data-action="top-increases" aria-label="Ver mayores subidas">
+                        <div class="link-icon" style="background-color: rgba(231, 76, 60, 0.1);">
+                            <i class="fas fa-arrow-up" style="color: #e74c3c;"></i>
+                        </div>
+                        <div class="link-content">
+                            <h4>Mayores Subidas</h4>
+                            <p>Productos con mayor aumento</p>
+                        </div>
+                        <i class="fas fa-chevron-right link-arrow"></i>
+                    </button>
+                    
+                    <button class="link-card" data-action="top-decreases" aria-label="Ver mayores bajadas">
+                        <div class="link-icon" style="background-color: rgba(46, 204, 113, 0.1);">
+                            <i class="fas fa-arrow-down" style="color: #2ecc71;"></i>
+                        </div>
+                        <div class="link-content">
+                            <h4>Mayores Bajadas</h4>
+                            <p>Productos con mayor descuento</p>
+                        </div>
+                        <i class="fas fa-chevron-right link-arrow"></i>
+                    </button>
+                    
+                    <button class="link-card" data-action="by-supermarket" aria-label="Filtrar por supermercado">
+                        <div class="link-icon" style="background-color: rgba(52, 152, 219, 0.1);">
+                            <i class="fas fa-store"></i>
+                        </div>
+                        <div class="link-content">
+                            <h4>Por Supermercado</h4>
+                            <p>Comparar por establecimiento</p>
+                        </div>
+                        <i class="fas fa-chevron-right link-arrow"></i>
+                    </button>
+                    
+                    <button class="link-card" data-action="by-city" aria-label="Filtrar por ciudad">
+                        <div class="link-icon" style="background-color: rgba(155, 89, 182, 0.1);">
+                            <i class="fas fa-city"></i>
+                        </div>
+                        <div class="link-content">
+                            <h4>Por Ciudad</h4>
+                            <p>Analizar por ubicación</p>
+                        </div>
+                        <i class="fas fa-chevron-right link-arrow"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info -->
+            <div class="info-section">
+                <div class="info-card">
+                    <i class="fas fa-info-circle info-icon"></i>
+                    <div>
+                        <h3>Base de datos cargada</h3>
+                        <p><span id="total-records">0</span> registros disponibles para análisis</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pantalla de Resultados -->
+        <section id="results-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" data-back="main" aria-label="Volver al inicio">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </button>
+                <div class="screen-title">
+                    <h2 id="product-title">Producto</h2>
+                    <p class="screen-subtitle" id="product-subtitle"></p>
+                </div>
+            </div>
+
+            <!-- Resumen ACTUALIZABLE con filtros -->
+            <div class="product-summary">
+                <div class="summary-card highlight">
+                    <div class="summary-icon">
+                        <i class="fas fa-euro-sign"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h4>Precio Actual</h4>
+                        <p class="price-large" id="current-price">-</p>
+                        <small id="current-price-context">Último registro</small>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h4>Variación Total</h4>
+                        <p class="variation-large" id="total-variation">-</p>
+                        <small id="variation-context">Desde el inicio</small>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <i class="fas fa-history"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h4>Registros</h4>
+                        <p class="number-large" id="total-records-result">-</p>
+                        <small id="records-context">Total mediciones</small>
+                    </div>
+                </div>
+                
+                <div class="summary-card">
+                    <div class="summary-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="summary-content">
+                        <h4>Última Actualización</h4>
+                        <p id="last-record-date">-</p>
+                        <small id="date-context">Fecha del registro</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráfico con FILTROS MÚLTIPLES -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3><i class="fas fa-chart-line"></i> Evolución del Precio</h3>
+
+                    <!-- Filtros Múltiples: Ciudad + Supermercado + Marca -->
+                <div class="chart-filters">
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label for="city-filter"><i class="fas fa-city"></i> Ciudad:</label>
+                            <select id="city-filter" class="city-select" aria-label="Seleccionar ciudad para filtrar">
+                                <option value="global">Todas las ciudades</option>
+                                <!-- Se llena dinámicamente -->
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="supermarket-filter"><i class="fas fa-store"></i> Supermercado:</label>
+                            <select id="supermarket-filter" class="supermarket-select" aria-label="Seleccionar supermercado para filtrar">
+                                <option value="global">Todos los supermercados</option>
+                                <!-- Se llena dinámicamente -->
+                            </select>
+                        </div>
+
+                        <div class="filter-group">
+                            <label for="brand-filter"><i class="fas fa-tag"></i> Marca:</label>
+                            <select id="brand-filter" class="brand-select" aria-label="Seleccionar marca para filtrar">
+                                <option value="global">Todas las marcas</option>
+                                <!-- Se llena dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="filters-actions">
+                        <button id="apply-filters" class="apply-filters-btn" aria-label="Aplicar filtros">
+                            <i class="fas fa-filter"></i> Aplicar Filtros
+                        </button>
+                        <button id="reset-filter" class="reset-btn" aria-label="Restablecer filtros">
+                            <i class="fas fa-redo"></i> Restablecer
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor fijo para el gráfico -->
+                <div class="chart-wrapper">
+                    <canvas id="price-chart"></canvas>
+                </div>
+
+                <div class="chart-info">
+                    <p><i class="fas fa-info-circle"></i> Cada línea representa una combinación única de MARCA + SUPERMERCADO</p>
+                </div>
+            </div>
+
+            <!-- Detalles por Origen -->
+            <div class="details-section">
+                <h3><i class="fas fa-list"></i> Detalles por Origen</h3>
+                <div id="brand-details" class="details-grid"></div>
+            </div>
+        </section>
+
+        <!-- Pantalla Top -->
+        <section id="top-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" data-back="main" aria-label="Volver al inicio">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </button>
+                <div class="screen-title">
+                    <h2 id="top-title">Top Productos</h2>
+                    <p class="screen-subtitle">Productos con mayor variación de precio</p>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="increases" id="tab-increases">
+                        <i class="fas fa-arrow-up"></i> Subidas
+                    </button>
+                    <button class="tab-btn" data-tab="decreases" id="tab-decreases">
+                        <i class="fas fa-arrow-down"></i> Bajadas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Listas -->
+            <div class="top-lists-container">
+                <div class="top-list active" id="top-increases" role="tabpanel" aria-labelledby="tab-increases">
+                    <!-- Se llena dinámicamente -->
+                </div>
+                <div class="top-list" id="top-decreases" role="tabpanel" aria-labelledby="tab-decreases">
+                    <!-- Se llena dinámicamente -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Pantalla Filtros -->
+        <section id="filter-screen" class="screen">
+            <div class="screen-header">
+                <button class="back-btn" data-back="main" aria-label="Volver al inicio">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </button>
+                <div class="screen-title">
+                    <h2 id="filter-title">Filtros</h2>
+                    <p class="screen-subtitle">Selecciona un criterio de filtrado</p>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <div class="filter-options" id="filter-options"></div>
+                <div class="filter-results" id="filter-results"></div>
+            </div>
+        </section>
+
+        <!-- Loading -->
+        <div id="loading" class="loading-overlay hidden">
+            <div class="loading-content">
+                <div class="spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <h3>Cargando datos...</h3>
+                <p id="loading-message">Por favor, espera</p>
+                <div class="progress-bar">
+                    <div class="progress"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Toast (oculto por defecto) -->
+        <div id="error-toast" class="toast hidden">
+            <div class="toast-content">
+                <i class="fas fa-exclamation-circle"></i>
+                <p id="error-message"></p>
+            </div>
+            <button class="toast-close" onclick="hideError()" aria-label="Cerrar mensaje">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>PriceTracker Super</h4>
+                <p>Analizador de precios de supermercado</p>
+            </div>
+            <div class="footer-section">
+                <p><i class="fas fa-database"></i> Total registros: <span id="footer-total-data">0</span></p>
+                <p><i class="fas fa-sync-alt"></i> Actualizado: <span id="last-update">-</span></p>
+            </div>
+            <div class="footer-section">
+                <p><i class="fas fa-code"></i> Desarrollado con JavaScript</p>
+                <p><i class="fas fa-chart-line"></i> Visualización con Chart.js</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2024 PriceTracker Super - Todos los derechos reservados</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    
+    <!-- Función para ocultar errores -->
+    <script>
+        function hideError() {
+            const toast = document.getElementById('error-toast');
+            if (toast) {
+                toast.classList.add('hidden');
+            }
+        }
+        
+        // Ocultar toast automáticamente después de 5 segundos
+        document.addEventListener('DOMContentLoaded', function() {
+            const toast = document.getElementById('error-toast');
+            if (toast && !toast.classList.contains('hidden')) {
+                setTimeout(hideError, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
