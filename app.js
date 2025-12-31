@@ -20,28 +20,87 @@ const screens = {
     results: document.getElementById('results-screen'),
     variation: document.getElementById('variation-screen'),
     inflation: document.getElementById('inflation-screen'),
-    top: document.getElementById('top-screen'),
-    filter: document.getElementById('filter-screen')
+    products: document.getElementById('products-screen'),
+    filter: document.getElementById('filter-screen'),
+    date: document.getElementById('date-screen')
 };
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Iniciando aplicación...');
-    await loadData();
-    initEventListeners();
-    setupSearch();
+    try {
+        await loadData();
+        initEventListeners();
+        setupSearch();
+        setupNavigation();
+        setupMobileMenu();
+        updateStats(); // Asegurar que se actualicen las estadísticas
+        console.log('✅ Aplicación inicializada correctamente');
+    } catch (error) {
+        console.error('❌ Error en inicialización:', error);
+        showError(`Error al inicializar la aplicación: ${error.message}`);
+    }
 });
+
+// Configurar elementos DOM adicionales
+function setupAdditionalElements() {
+    // Configurar botones de tabs
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabType = this.dataset.tab;
+            
+            // Actualizar tabs activos
+            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Mostrar contenido correspondiente
+            if (tabType === 'increases') {
+                showTopVariations('increases');
+            } else {
+                showTopVariations('decreases');
+            }
+        });
+    });
+}
+
+// Configurar menú móvil
+function setupMobileMenu() {
+    const menuToggle = document.getElementById('menu-toggle');
+    const closeMenu = document.getElementById('close-menu');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('main-content');
+
+    if (menuToggle && sidebar) {
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevenir scroll
+        });
+
+        closeMenu.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            document.body.style.overflow = ''; // Restaurar scroll
+        });
+
+        // Cerrar menú al hacer clic fuera en móvil
+        mainContent.addEventListener('click', () => {
+            if (window.innerWidth <= 992 && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        });
+    }
+}
 
 // Cargar datos
 async function loadData() {
-    showLoading();
+    showLoading('Cargando datos...');
     
     try {
         console.log('📂 Cargando datos...');
         const response = await fetch('./datos_super.json');
         
         if (!response.ok) {
-            throw new Error(`Error ${response.status}`);
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
         
         productosData = await response.json();
@@ -49,16 +108,27 @@ async function loadData() {
         
         // Procesar datos
         processData();
-        updateStats();
         
-        // Actualizar fecha
+        // Actualizar fecha en sidebar
         const now = new Date();
-        document.getElementById('last-update').textContent = 
-            now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+        const updateText = now.toLocaleDateString('es-ES') + ' ' + 
+                          now.toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'});
+        
+        // Usar optional chaining para evitar errores
+        const sidebarUpdate = document.getElementById('sidebar-update');
+        if (sidebarUpdate) {
+            sidebarUpdate.textContent = updateText;
+        }
+        
+        const lastUpdate = document.getElementById('last-update');
+        if (lastUpdate) {
+            lastUpdate.textContent = updateText;
+        }
             
     } catch (error) {
-        console.error('❌ Error:', error);
+        console.error('❌ Error cargando datos:', error);
         showError(`Error cargando datos: ${error.message}`);
+        throw error;
     } finally {
         hideLoading();
     }
@@ -101,23 +171,129 @@ function processData() {
 
 // Actualizar estadísticas
 function updateStats() {
-    // Actualizar contadores principales
-    document.getElementById('total-products').textContent = uniqueProducts.length;
-    document.getElementById('total-supermarkets').textContent = supermarkets.size;
-    document.getElementById('total-cities').textContent = cities.size;
-    document.getElementById('total-records').textContent = productosData.length;
-    document.getElementById('footer-total-data').textContent = productosData.length;
+    console.log('📈 Actualizando estadísticas...');
     
-    // Calcular rango de fechas
-    const fechas = productosData
-        .map(p => new Date(p.fecha))
-        .filter(date => !isNaN(date.getTime()));
+    try {
+        // Actualizar contadores principales
+        const totalProductsElem = document.getElementById('total-products');
+        const totalSupermarketsElem = document.getElementById('total-supermarkets');
+        const totalCitiesElem = document.getElementById('total-cities');
+        const totalRecordsElem = document.getElementById('total-records');
+        const footerTotalDataElem = document.getElementById('footer-total-data');
+        const allProductsCountElem = document.getElementById('all-products-count');
+        const allProductsRecordsElem = document.getElementById('all-products-records');
+        const dateRangeElem = document.getElementById('date-range');
+        
+        if (totalProductsElem) totalProductsElem.textContent = uniqueProducts.length;
+        if (totalSupermarketsElem) totalSupermarketsElem.textContent = supermarkets.size;
+        if (totalCitiesElem) totalCitiesElem.textContent = cities.size;
+        if (totalRecordsElem) totalRecordsElem.textContent = productosData.length;
+        if (footerTotalDataElem) footerTotalDataElem.textContent = productosData.length;
+        if (allProductsCountElem) allProductsCountElem.textContent = uniqueProducts.length;
+        if (allProductsRecordsElem) allProductsRecordsElem.textContent = productosData.length;
+        
+        // Calcular rango de fechas
+        const fechas = productosData
+            .map(p => {
+                try {
+                    return new Date(p.fecha);
+                } catch {
+                    return null;
+                }
+            })
+            .filter(date => date && !isNaN(date.getTime()));
+        
+        if (fechas.length > 0 && dateRangeElem) {
+            const minDate = new Date(Math.min(...fechas.map(d => d.getTime())));
+            const maxDate = new Date(Math.max(...fechas.map(d => d.getTime())));
+            const dateText = `${minDate.getFullYear()}-${maxDate.getFullYear()}`;
+            dateRangeElem.textContent = dateText;
+        } else if (dateRangeElem) {
+            dateRangeElem.textContent = '-';
+        }
+        
+        console.log('✅ Estadísticas actualizadas');
+    } catch (error) {
+        console.error('❌ Error actualizando estadísticas:', error);
+    }
+}
+
+// Configurar navegación
+function setupNavigation() {
+    // Navegación lateral
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const action = this.dataset.action;
+            
+            // Cerrar menú en móvil
+            if (window.innerWidth <= 992) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar) sidebar.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+            
+            // Actualizar estado activo
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+            
+            handleNavigationAction(action);
+        });
+    });
     
-    if (fechas.length > 0) {
-        const minDate = new Date(Math.min(...fechas));
-        const maxDate = new Date(Math.max(...fechas));
-        document.getElementById('date-range').textContent = 
-            `${minDate.toLocaleDateString('es-ES')} - ${maxDate.toLocaleDateString('es-ES')}`;
+    // Botones de estadísticas
+    document.querySelectorAll('.stat-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            handleNavigationAction(action);
+        });
+    });
+    
+    // Acciones rápidas
+    document.querySelectorAll('.action-card').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            handleNavigationAction(action);
+        });
+    });
+    
+    // Botones de variación
+    document.querySelectorAll('.variation-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const action = this.dataset.action;
+            if (action === 'top-increases') {
+                showTopVariations('increases');
+            } else if (action === 'top-decreases') {
+                showTopVariations('decreases');
+            }
+        });
+    });
+}
+
+// Manejar acciones de navegación
+function handleNavigationAction(action) {
+    switch(action) {
+        case 'main':
+            showScreen('main');
+            break;
+        case 'variation-analysis':
+            showVariationAnalysis();
+            break;
+        case 'inflation-analysis':
+            showInflationAnalysis();
+            break;
+        case 'all-products':
+            showAllProducts();
+            break;
+        case 'by-supermarket':
+            showFilterScreen('supermarket', Array.from(supermarkets).sort());
+            break;
+        case 'by-city':
+            showFilterScreen('city', Array.from(cities).sort());
+            break;
+        case 'by-date':
+            showDateSummary();
+            break;
     }
 }
 
@@ -126,6 +302,11 @@ function setupSearch() {
     const searchInput = document.getElementById('product-search');
     const searchBtn = document.getElementById('search-btn');
     const suggestions = document.getElementById('suggestions');
+    
+    if (!searchInput || !searchBtn) {
+        console.error('❌ Elementos de búsqueda no encontrados');
+        return;
+    }
     
     // Buscar al hacer clic
     searchBtn.addEventListener('click', () => {
@@ -148,31 +329,49 @@ function setupSearch() {
     // Autocompletado
     searchInput.addEventListener('input', function() {
         const query = this.value.toLowerCase().trim();
-        suggestions.innerHTML = '';
+        const suggestionsElem = document.getElementById('suggestions');
         
-        if (query.length < 2) return;
+        if (!suggestionsElem) return;
+        
+        suggestionsElem.innerHTML = '';
+        
+        if (query.length < 2) {
+            suggestionsElem.style.display = 'none';
+            return;
+        }
         
         const matches = uniqueProducts
             .filter(product => product.toLowerCase().includes(query))
             .slice(0, 8);
         
+        if (matches.length === 0) {
+            suggestionsElem.style.display = 'none';
+            return;
+        }
+        
         matches.forEach(product => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
-            div.textContent = product;
+            div.innerHTML = `<i class="fas fa-search"></i> ${product}`;
             div.addEventListener('click', () => {
                 searchInput.value = product;
-                suggestions.innerHTML = '';
+                suggestionsElem.innerHTML = '';
+                suggestionsElem.style.display = 'none';
                 searchProduct(product);
             });
-            suggestions.appendChild(div);
+            suggestionsElem.appendChild(div);
         });
+        
+        suggestionsElem.style.display = 'block';
     });
     
     // Cerrar sugerencias al hacer clic fuera
     document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !suggestions.contains(e.target)) {
+        if (suggestions && 
+            !searchInput.contains(e.target) && 
+            !suggestions.contains(e.target)) {
             suggestions.innerHTML = '';
+            suggestions.style.display = 'none';
         }
     });
 }
@@ -184,7 +383,7 @@ function searchProduct(productName) {
     
     console.log('🔍 Buscando:', query);
     currentSearchTerm = query;
-    showLoading();
+    showLoading('Buscando producto...');
     
     try {
         // Buscar coincidencias EXACTAS
@@ -245,6 +444,11 @@ function searchProduct(productName) {
         // Cambiar pantalla
         showScreen('results');
         
+        // Actualizar navegación
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        const mainNavLink = document.querySelector('[data-action="main"]');
+        if (mainNavLink) mainNavLink.classList.add('active');
+        
         console.log('✅ Producto mostrado correctamente');
         
     } catch (error) {
@@ -255,9 +459,201 @@ function searchProduct(productName) {
     }
 }
 
-// Actualizar resumen del producto (CAMBIADO: variación media en lugar de total)
+// Mostrar todos los productos
+function showAllProducts() {
+    showScreen('products');
+    updateAllProductsList();
+    
+    // Actualizar navegación
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const allProductsNavLink = document.querySelector('[data-action="all-products"]');
+    if (allProductsNavLink) allProductsNavLink.classList.add('active');
+}
+
+// Actualizar lista de productos
+function updateAllProductsList() {
+    const productsGrid = document.getElementById('products-grid');
+    if (!productsGrid) return;
+    
+    productsGrid.innerHTML = '';
+    
+    uniqueProducts.forEach(product => {
+        const item = document.createElement('div');
+        item.className = 'product-item';
+        item.innerHTML = `<p>${product}</p>`;
+        item.addEventListener('click', () => {
+            searchProduct(product);
+        });
+        productsGrid.appendChild(item);
+    });
+    
+    // Configurar filtro de productos
+    const filterInput = document.getElementById('products-filter');
+    const clearBtn = document.getElementById('clear-filter');
+    
+    if (filterInput) {
+        filterInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            const items = productsGrid.querySelectorAll('.product-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = query === '' || text.includes(query) ? 'block' : 'none';
+            });
+        });
+    }
+    
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (filterInput) filterInput.value = '';
+            const items = productsGrid.querySelectorAll('.product-item');
+            items.forEach(item => item.style.display = 'block');
+        });
+    }
+}
+
+// Mostrar resumen por fecha
+function showDateSummary() {
+    showScreen('date');
+    
+    // Agrupar por año
+    const years = {};
+    productosData.forEach(item => {
+        if (!item.fecha) return;
+        try {
+            const year = item.fecha.split('-')[0];
+            if (!years[year]) {
+                years[year] = {
+                    count: 0,
+                    products: new Set(),
+                    supermarkets: new Set(),
+                    cities: new Set()
+                };
+            }
+            years[year].count++;
+            years[year].products.add(item.producto);
+            if (item.super) years[year].supermarkets.add(item.super);
+            if (item.ciudad) years[year].cities.add(item.ciudad);
+        } catch (error) {
+            console.warn('Error procesando fecha:', item.fecha);
+        }
+    });
+    
+    // Mostrar tarjetas de año
+    const yearCards = document.getElementById('year-cards');
+    if (yearCards) {
+        yearCards.innerHTML = '';
+        
+        const sortedYears = Object.keys(years).sort().reverse();
+        
+        if (sortedYears.length === 0) {
+            yearCards.innerHTML = '<p class="no-data">No hay datos por año disponibles</p>';
+        } else {
+            sortedYears.forEach(year => {
+                const data = years[year];
+                const card = document.createElement('div');
+                card.className = 'year-card';
+                card.innerHTML = `
+                    <h3>Año ${year}</h3>
+                    <div class="year-stats">
+                        <div class="year-stat">
+                            <small>Registros</small>
+                            <p>${data.count}</p>
+                        </div>
+                        <div class="year-stat">
+                            <small>Productos</small>
+                            <p>${data.products.size}</p>
+                        </div>
+                        <div class="year-stat">
+                            <small>Supermercados</small>
+                            <p>${data.supermarkets.size}</p>
+                        </div>
+                        <div class="year-stat">
+                            <small>Ciudades</small>
+                            <p>${data.cities.size}</p>
+                        </div>
+                    </div>
+                `;
+                yearCards.appendChild(card);
+            });
+        }
+    }
+    
+    // Crear gráfico de barras
+    createYearChart(years);
+    
+    // Actualizar navegación
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const dateNavLink = document.querySelector('[data-action="by-date"]');
+    if (dateNavLink) dateNavLink.classList.add('active');
+}
+
+// Crear gráfico de años
+function createYearChart(years) {
+    const canvas = document.getElementById('records-chart');
+    if (!canvas) return;
+    
+    // Destruir gráfico anterior si existe
+    const existingChart = Chart.getChart(canvas);
+    if (existingChart) {
+        existingChart.destroy();
+    }
+    
+    const sortedYears = Object.keys(years).sort();
+    const counts = sortedYears.map(year => years[year].count);
+    
+    if (sortedYears.length === 0 || counts.length === 0) return;
+    
+    const ctx = canvas.getContext('2d');
+    try {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedYears,
+                datasets: [{
+                    label: 'Registros',
+                    data: counts,
+                    backgroundColor: 'rgba(74, 111, 165, 0.7)',
+                    borderColor: 'rgba(74, 111, 165, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Número de registros'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Año'
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error creando gráfico de años:', error);
+    }
+}
+
+// Función para mostrar resumen de producto
 function updateProductSummary(productData, filters = { city: 'global', supermarket: 'global', brand: 'global' }) {
-    if (!productData || productData.length === 0) return;
+    if (!productData || productData.length === 0) {
+        setSummaryPlaceholders();
+        return;
+    }
     
     // Aplicar filtros a los datos
     let filteredData = productData;
@@ -275,15 +671,7 @@ function updateProductSummary(productData, filters = { city: 'global', supermark
     }
     
     if (filteredData.length === 0) {
-        document.getElementById('current-price').textContent = '-';
-        document.getElementById('total-variation').textContent = '-';
-        document.getElementById('total-records-result').textContent = '0';
-        document.getElementById('last-record-date').textContent = '-';
-        
-        document.getElementById('current-price-context').textContent = 'Sin datos con filtros';
-        document.getElementById('variation-context').textContent = 'Sin datos con filtros';
-        document.getElementById('records-context').textContent = 'Sin datos con filtros';
-        document.getElementById('date-context').textContent = 'Sin datos con filtros';
+        setSummaryPlaceholders();
         return;
     }
     
@@ -293,9 +681,9 @@ function updateProductSummary(productData, filters = { city: 'global', supermark
     // PRECIO ACTUAL
     const mostRecentRecord = filteredData[0];
     const currentPrice = mostRecentRecord.precio || 0;
-    document.getElementById('current-price').textContent = `${currentPrice.toFixed(2)}€`;
+    setElementText('current-price', `${currentPrice.toFixed(2)}€`);
     
-    // VARIACIÓN MEDIA (NUEVO CÁLCULO)
+    // VARIACIÓN MEDIA
     const groupedVariations = new Map();
     
     filteredData.forEach(item => {
@@ -333,16 +721,22 @@ function updateProductSummary(productData, filters = { city: 'global', supermark
     }
     
     const variationElem = document.getElementById('total-variation');
-    variationElem.textContent = `${avgVariation >= 0 ? '+' : ''}${avgVariation.toFixed(1)}%`;
-    variationElem.className = `variation-large ${avgVariation >= 0 ? 'positive' : 'negative'}`;
+    if (variationElem) {
+        variationElem.textContent = `${avgVariation >= 0 ? '+' : ''}${avgVariation.toFixed(1)}%`;
+        variationElem.className = `variation-large ${avgVariation >= 0 ? 'positive' : 'negative'}`;
+    }
     
     // Registros
-    document.getElementById('total-records-result').textContent = filteredData.length;
+    setElementText('total-records-result', filteredData.length);
     
     // Última fecha
     if (document.getElementById('last-record-date')) {
-        const lastDate = new Date(mostRecentRecord.fecha);
-        document.getElementById('last-record-date').textContent = lastDate.toLocaleDateString('es-ES');
+        try {
+            const lastDate = new Date(mostRecentRecord.fecha);
+            setElementText('last-record-date', lastDate.toLocaleDateString('es-ES'));
+        } catch {
+            setElementText('last-record-date', '-');
+        }
     }
     
     // Actualizar contextos según filtros
@@ -359,13 +753,44 @@ function updateProductSummary(productData, filters = { city: 'global', supermark
         contextText = activeFilters.join(' | ');
     }
     
-    document.getElementById('current-price-context').textContent = contextText;
-    document.getElementById('variation-context').textContent = contextText;
-    document.getElementById('records-context').textContent = contextText;
-    document.getElementById('date-context').textContent = contextText;
+    setElementText('current-price-context', contextText);
+    setElementText('variation-context', contextText);
+    setElementText('records-context', contextText);
+    setElementText('date-context', contextText);
 }
 
-// Crear gráfico de precios
+// Helper para establecer texto de elementos de forma segura
+function setElementText(elementId, text) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = text;
+    }
+}
+
+// Helper para establecer placeholders en resumen
+function setSummaryPlaceholders() {
+    const placeholders = {
+        'current-price': '-',
+        'total-variation': '-',
+        'total-records-result': '0',
+        'last-record-date': '-',
+        'current-price-context': 'Sin datos con filtros',
+        'variation-context': 'Sin datos con filtros',
+        'records-context': 'Sin datos con filtros',
+        'date-context': 'Sin datos con filtros'
+    };
+    
+    for (const [id, text] of Object.entries(placeholders)) {
+        setElementText(id, text);
+    }
+    
+    const variationElem = document.getElementById('total-variation');
+    if (variationElem) {
+        variationElem.className = 'variation-large';
+    }
+}
+
+// Función para crear gráfico de precios
 function createPriceChart(productData, filters = { city: 'global', supermarket: 'global', brand: 'global' }) {
     console.log('📈 Creando gráfico (Marca + Supermercado)');
     
@@ -519,10 +944,9 @@ function createPriceChart(productData, filters = { city: 'global', supermarket: 
         // Preparar datasets para Chart.js
         const datasets = [];
         const colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-            '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-            '#F1948A', '#76D7C4', '#F8C471', '#AF7AC5', '#82E0AA',
-            '#F9E79F', '#D7BDE2', '#85C1E9', '#F5B7B1', '#AED6F1'
+            '#4a6fa5', '#6b8e23', '#8b4513', '#2c3e50', '#7d3c98',
+            '#16a085', '#e67e22', '#3498db', '#1abc9c', '#9b59b6',
+            '#34495e', '#27ae60', '#8e44ad', '#2c3e50', '#f39c12'
         ];
         
         Object.entries(validGroups).forEach(([combinacion, group], index) => {
@@ -682,7 +1106,7 @@ function createPriceChart(productData, filters = { city: 'global', supermarket: 
         const errorDiv = document.createElement('div');
         errorDiv.className = 'chart-info-message';
         errorDiv.innerHTML = `
-            <p><i class="fas fa-info-circle"></i> ${error.message}</p>
+            <p><i class="fas fa-info-circle"></i> Error al crear el gráfico</p>
             <p><small>Intenta buscar otro producto o cambiar los filtros</small></p>
         `;
         chartContainer.appendChild(errorDiv);
@@ -720,7 +1144,7 @@ function setupFilters(productData, ciudades, supermercados, marcas) {
         
         console.log(`🌍 Aplicando filtros: Ciudad=${selectedCity}, Supermercado=${selectedSupermarket}, Marca=${selectedBrand}`);
         
-        showLoading();
+        showLoading('Aplicando filtros...');
         setTimeout(() => {
             updateProductSummary(productData, currentFilters);
             createPriceChart(productData, currentFilters);
@@ -738,7 +1162,7 @@ function setupFilters(productData, ciudades, supermercados, marcas) {
         
         console.log('🔄 Restableciendo filtros');
         
-        showLoading();
+        showLoading('Restableciendo filtros...');
         setTimeout(() => {
             updateProductSummary(productData, currentFilters);
             createPriceChart(productData, currentFilters);
@@ -754,9 +1178,10 @@ function updateFilterSelector(selectElement, options, selectedValue) {
     
     const currentValue = selectElement.value;
     
-    while (selectElement.options.length > 1) {
-        selectElement.remove(1);
-    }
+    // Guardar la primera opción (global)
+    const firstOption = selectElement.options[0];
+    selectElement.innerHTML = '';
+    if (firstOption) selectElement.appendChild(firstOption);
     
     options.sort();
     
@@ -896,7 +1321,7 @@ function showVariationAnalysis() {
     showScreen('variation');
     
     // Configurar event listeners para los botones grandes
-    document.querySelectorAll('#variation-screen .variation-option').forEach(btn => {
+    document.querySelectorAll('.variation-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             const action = this.dataset.action;
             if (action === 'top-increases') {
@@ -906,11 +1331,19 @@ function showVariationAnalysis() {
             }
         });
     });
+    
+    // Mostrar subidas por defecto
+    showTopVariations('increases');
+    
+    // Actualizar navegación
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const variationNavLink = document.querySelector('[data-action="variation-analysis"]');
+    if (variationNavLink) variationNavLink.classList.add('active');
 }
 
-// Mostrar top productos con variación (PRODUCTO + MARCA + SUPER)
+// Mostrar top productos con variación
 function showTopVariations(type) {
-    showLoading();
+    showLoading('Calculando variaciones...');
     
     // Agrupar por producto, marca y supermercado, tomando el MÁS RECIENTE de cada uno
     const latestProducts = new Map();
@@ -939,10 +1372,12 @@ function showTopVariations(type) {
     // Ordenar
     if (type === 'increases') {
         productsWithVariation.sort((a, b) => b.variacion_total - a.variacion_total);
-        document.querySelector('#variation-screen .screen-title h2').textContent = 'Mayores Subidas';
+        const titleElem = document.querySelector('#variation-screen .screen-title h2');
+        if (titleElem) titleElem.textContent = 'Mayores Subidas';
     } else {
         productsWithVariation.sort((a, b) => a.variacion_total - b.variacion_total);
-        document.querySelector('#variation-screen .screen-title h2').textContent = 'Mayores Bajadas';
+        const titleElem = document.querySelector('#variation-screen .screen-title h2');
+        if (titleElem) titleElem.textContent = 'Mayores Bajadas';
     }
     
     // Mostrar top 15
@@ -1003,7 +1438,7 @@ function showTopVariations(type) {
     hideLoading();
 }
 
-// Mostrar análisis de inflación (CÁLCULO CORREGIDO - EQUIVALENTE AL PYTHON)
+// Mostrar análisis de inflación
 function showInflationAnalysis() {
     showScreen('inflation');
     updateInflationStats();
@@ -1034,9 +1469,14 @@ function showInflationAnalysis() {
         
         yearFilter.addEventListener('change', updateInflationStats);
     }
+    
+    // Actualizar navegación
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const inflationNavLink = document.querySelector('[data-action="inflation-analysis"]');
+    if (inflationNavLink) inflationNavLink.classList.add('active');
 }
 
-// Actualizar estadísticas de inflación (NUEVO CÁLCULO - EQUIVALENTE AL PYTHON)
+// Actualizar estadísticas de inflación
 function updateInflationStats() {
     const cityFilter = document.getElementById('city-inflation-filter');
     const yearFilter = document.getElementById('year-inflation-filter');
@@ -1172,7 +1612,7 @@ function updateInflationStats() {
         };
     }
     
-    // Mostrar resultados (igual que antes)
+    // Mostrar resultados
     statsContainer.innerHTML = `
         <div class="inflation-stat-card highlight">
             <div class="inflation-stat-icon">
@@ -1249,6 +1689,8 @@ function showFilterScreen(filterType, options) {
     const container = document.getElementById('filter-options');
     const results = document.getElementById('filter-results');
     
+    if (!container || !results) return;
+    
     container.innerHTML = '';
     results.innerHTML = '';
     
@@ -1266,7 +1708,7 @@ function showFilterScreen(filterType, options) {
         
         const button = document.createElement('button');
         button.className = 'filter-option';
-        button.textContent = option;
+        button.innerHTML = `<i class="fas fa-${filterType === 'supermarket' ? 'store' : filterType === 'city' ? 'city' : 'tag'}"></i> ${option}`;
         button.addEventListener('click', () => {
             showFilterResults(filterType, option);
         });
@@ -1274,11 +1716,17 @@ function showFilterScreen(filterType, options) {
     });
     
     showScreen('filter');
+    
+    // Actualizar navegación
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    const filterNavLink = document.querySelector(`[data-action="by-${filterType}"]`);
+    if (filterNavLink) filterNavLink.classList.add('active');
 }
 
 // Mostrar resultados de filtro (pantalla separada)
 function showFilterResults(filterType, value) {
     const results = document.getElementById('filter-results');
+    if (!results) return;
     
     // Filtrar datos
     let filteredData;
@@ -1330,37 +1778,20 @@ function showFilterResults(filterType, value) {
     `;
 }
 
-// Event Listeners
+// Event Listeners adicionales
 function initEventListeners() {
-    // Botones de acciones rápidas
-    document.querySelectorAll('[data-action]').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const action = this.dataset.action;
-            
-            switch(action) {
-                case 'variation-analysis':
-                    showVariationAnalysis();
-                    break;
-                case 'inflation-analysis':
-                    showInflationAnalysis();
-                    break;
-                case 'by-supermarket':
-                    showFilterScreen('supermarket', Array.from(supermarkets));
-                    break;
-                case 'by-city':
-                    showFilterScreen('city', Array.from(cities));
-                    break;
-                case 'by-brand':
-                    showFilterScreen('brand', Array.from(brands));
-                    break;
-            }
-        });
-    });
-    
     // Botones de volver
     document.querySelectorAll('.back-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            showScreen('main');
+            const backTo = this.dataset.back || 'main';
+            showScreen(backTo);
+            
+            // Actualizar navegación
+            if (backTo === 'main') {
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                const mainNavLink = document.querySelector('[data-action="main"]');
+                if (mainNavLink) mainNavLink.classList.add('active');
+            }
         });
     });
     
@@ -1381,10 +1812,18 @@ function initEventListeners() {
             }
         });
     });
+    setupAdditionalElements();
 }
 
 // Mostrar/ocultar pantallas
 function showScreen(screenName) {
+    // Cerrar menú en móvil
+    if (window.innerWidth <= 992) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    
     // Ocultar todas las pantallas
     Object.values(screens).forEach(screen => {
         if (screen) screen.classList.remove('active');
@@ -1397,9 +1836,16 @@ function showScreen(screenName) {
 }
 
 // Utilidades
-function showLoading() {
+function showLoading(message = 'Cargando...') {
     const loading = document.getElementById('loading');
-    if (loading) loading.classList.remove('hidden');
+    const loadingMessage = document.getElementById('loading-message');
+    
+    if (loading) {
+        if (loadingMessage && message) {
+            loadingMessage.textContent = message;
+        }
+        loading.classList.remove('hidden');
+    }
 }
 
 function hideLoading() {
@@ -1425,6 +1871,7 @@ function showError(message) {
 
 // Hacer funciones disponibles globalmente
 window.searchProduct = searchProduct;
+window.hideError = hideError;
 
 // Función para debug
 window.debugProduct = function(productName) {
