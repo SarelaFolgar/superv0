@@ -269,7 +269,7 @@ body {
 }
 
 /* ============================================
-   ACCIONES RÁPIDAS
+   ACCIONES RÁPIDAS - MODIFICADO PARA 4 BOTONES
    ============================================ */
 .quick-links {
     margin: 1.5rem 0;
@@ -809,6 +809,182 @@ body {
 }
 
 /* ============================================
+   PANTALLA ANÁLISIS VARIACIÓN
+   ============================================ */
+.variation-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.variation-option {
+    background: var(--white);
+    border: none;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.variation-option:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.variation-option.subidas {
+    border: 2px solid var(--danger-color);
+}
+
+.variation-option.bajadas {
+    border: 2px solid var(--secondary-color);
+}
+
+.variation-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.variation-option.subidas .variation-icon {
+    background: rgba(231, 76, 60, 0.1);
+    color: var(--danger-color);
+}
+
+.variation-option.bajadas .variation-icon {
+    background: rgba(46, 204, 113, 0.1);
+    color: var(--secondary-color);
+}
+
+.variation-content h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.variation-option.subidas h4 {
+    color: var(--danger-color);
+}
+
+.variation-option.bajadas h4 {
+    color: var(--secondary-color);
+}
+
+.variation-content p {
+    font-size: 0.85rem;
+    color: var(--gray-color);
+    margin: 0;
+}
+
+/* ============================================
+   PANTALLA ANÁLISIS INFLACIÓN
+   ============================================ */
+.inflation-controls {
+    background: var(--white);
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.inflation-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-select {
+    padding: 0.8rem;
+    border: 1px solid var(--light-color);
+    border-radius: var(--border-radius-sm);
+    background: var(--white);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: var(--transition);
+    color: var(--dark-color);
+    font-weight: 500;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+}
+
+.inflation-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.inflation-stat-card {
+    background: var(--white);
+    padding: 1.2rem;
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+    border: 1px solid var(--light-color);
+}
+
+.inflation-stat-card.highlight {
+    border-color: var(--primary-color);
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.inflation-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.inflation-stat-icon {
+    font-size: 1.3rem;
+    color: var(--primary-color);
+    margin-bottom: 0.8rem;
+}
+
+.inflation-stat-content h4 {
+    font-size: 0.8rem;
+    color: var(--gray-color);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.inflation-stat-number {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0.3rem 0;
+}
+
+.inflation-stat-number.positive {
+    color: var(--secondary-color);
+}
+
+.inflation-stat-number.negative {
+    color: var(--danger-color);
+}
+
+.inflation-stat-content small {
+    font-size: 0.75rem;
+    color: var(--gray-color);
+    display: block;
+    margin-top: 0.3rem;
+}
+
+/* ============================================
    TABS
    ============================================ */
 .tabs {
@@ -843,7 +1019,7 @@ body {
 }
 
 /* ============================================
-   LISTA TOP
+   LISTA TOP - MODIFICADO PARA MOSTRAR PRODUCTO, MARCA, SUPER
    ============================================ */
 .top-list {
     background: var(--white);
@@ -886,13 +1062,25 @@ body {
 }
 
 .top-info h4 {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.2rem;
     color: var(--dark-color);
     font-size: 0.95rem;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+}
+
+.product-details {
+    font-size: 0.8rem;
+    color: var(--gray-color);
+    margin-bottom: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.product-details span {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
 }
 
 .top-stats {
@@ -1271,6 +1459,18 @@ body {
         grid-template-columns: 1fr;
     }
     
+    .variation-options {
+        grid-template-columns: 1fr;
+    }
+    
+    .inflation-filters {
+        grid-template-columns: 1fr;
+    }
+    
+    .inflation-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
     .chart-header {
         flex-direction: column;
         align-items: stretch;
@@ -1347,7 +1547,8 @@ body {
     .search-section,
     .chart-container,
     .details-section,
-    .filter-results {
+    .filter-results,
+    .inflation-controls {
         padding: 1rem;
     }
     
@@ -1361,6 +1562,10 @@ body {
     }
     
     .product-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .inflation-stats {
         grid-template-columns: 1fr;
     }
     
