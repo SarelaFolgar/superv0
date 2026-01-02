@@ -1497,24 +1497,14 @@ function updateInflationStats() {
     let excludedProducts = 0;
     let totalCombinations = 0;
     
-    // Función auxiliar MEJORADA - Ahora recibe el campo de año específico
-    function filterByMinRecords(data, yearField) {
-        // 1. Determinar si estamos en un año específico o total
-        const isSpecificYear = yearField !== 'total';
-        
-        // 2. Contar ocurrencias CORRECTAMENTE
+    if (selectedYear === 'total') {
+        // CÁLCULO PARA INFLACIÓN TOTAL
+        // Requisito: ≥3 registros en total por combinación
         const combinationCounts = new Map();
         
-        data.forEach(item => {
+        // Contar registros totales por combinación
+        filteredData.forEach(item => {
             if (!item.producto || !item.super || !item.marca) return;
-            
-            // Para año específico, solo contar si tiene variación para ese año
-            if (isSpecificYear) {
-                if (item[yearField] === null || item[yearField] === undefined) return;
-            } else {
-                // Para total, solo contar si tiene variacion_total
-                if (item.variacion_total === null || item.variacion_total === undefined) return;
-            }
             
             const key = `${item.producto}||${item.super}||${item.marca}`;
             combinationCounts.set(key, (combinationCounts.get(key) || 0) + 1);
@@ -1522,62 +1512,43 @@ function updateInflationStats() {
         
         totalCombinations = combinationCounts.size;
         
-        // 3. Filtrar solo combinaciones con ≥3 registros
+        // Filtrar solo combinaciones con ≥3 registros TOTALES
         const validCombinations = new Set();
         combinationCounts.forEach((count, key) => {
-            if (count > 2) {
+            if (count > 2) {  // count > 2 es equivalente a count >= 3
                 validCombinations.add(key);
             } else {
                 excludedProducts++;
             }
         });
         
-        // 4. Tomar la variación más reciente de cada combinación válida
+        // Obtener la variación más reciente de cada combinación válida
         const latestVariations = new Map();
         
-        data.forEach(item => {
+        filteredData.forEach(item => {
             if (!item.producto || !item.super || !item.marca) return;
             
             const key = `${item.producto}||${item.super}||${item.marca}`;
             
-            // Solo procesar combinaciones válidas
+            // Solo procesar combinaciones válidas (≥3 registros totales)
             if (!validCombinations.has(key)) return;
             
-            // Para año específico, verificar que tenga variación
-            if (isSpecificYear) {
-                if (item[yearField] === null || item[yearField] === undefined) return;
-            } else {
-                if (item.variacion_total === null || item.variacion_total === undefined) return;
-            }
+            // Solo si tiene variacion_total
+            if (item.variacion_total === null || item.variacion_total === undefined) return;
             
             const currentDate = new Date(item.fecha);
-            const variacionValue = isSpecificYear ? 
-                item[yearField] : item.variacion_total;
             
             // Tomar el registro más reciente
             if (!latestVariations.has(key) || currentDate > latestVariations.get(key).fecha) {
                 latestVariations.set(key, {
                     fecha: currentDate,
-                    variacion: variacionValue
+                    variacion: item.variacion_total
                 });
             }
         });
         
-        // 5. Extraer solo las variaciones
         const validVariations = Array.from(latestVariations.values()).map(v => v.variacion);
-        const validCombinationsCount = latestVariations.size;
-        
-        return {
-            variations: validVariations,
-            count: validCombinationsCount
-        };
-    }
-    
-    if (selectedYear === 'total') {
-        // CÁLCULO PARA INFLACIÓN TOTAL
-        const filtered = filterByMinRecords(filteredData, 'total');
-        const validVariations = filtered.variations;
-        const validProductsCount = filtered.count;
+        const validProductsCount = latestVariations.size;
         
         result = {
             title: 'Inflación Total',
@@ -1592,12 +1563,70 @@ function updateInflationStats() {
         };
         
     } else {
-        // CÁLCULO PARA AÑO ESPECÍFICO
+        // CÁLCULO PARA AÑO ESPECÍFICO (ej: 2025)
+        // Requisito: ≥3 registros en ESE AÑO específico
         const yearField = `variacion_${selectedYear}`;
         
-        const filtered = filterByMinRecords(filteredData, yearField);
-        const validVariations = filtered.variations;
-        const validProductsCount = filtered.count;
+        // Contar registros del año específico por combinación
+        const combinationYearCounts = new Map();
+        
+        filteredData.forEach(item => {
+            if (!item.producto || !item.super || !item.marca) return;
+            
+            // Verificar que sea del año correcto
+            const itemYear = new Date(item.fecha).getFullYear().toString();
+            if (itemYear !== selectedYear) return;
+            
+            // Verificar que tenga variación para este año
+            if (item[yearField] === null || item[yearField] === undefined) return;
+            
+            const key = `${item.producto}||${item.super}||${item.marca}`;
+            combinationYearCounts.set(key, (combinationYearCounts.get(key) || 0) + 1);
+        });
+        
+        totalCombinations = combinationYearCounts.size;
+        
+        // Filtrar solo combinaciones con ≥3 registros en ESTE AÑO
+        const validCombinations = new Set();
+        combinationYearCounts.forEach((count, key) => {
+            if (count > 2) {  // count > 2 es equivalente a count >= 3
+                validCombinations.add(key);
+            } else {
+                excludedProducts++;
+            }
+        });
+        
+        // Obtener la variación más reciente de cada combinación válida PARA ESTE AÑO
+        const latestVariations = new Map();
+        
+        filteredData.forEach(item => {
+            if (!item.producto || !item.super || !item.marca) return;
+            
+            // Verificar que sea del año correcto
+            const itemYear = new Date(item.fecha).getFullYear().toString();
+            if (itemYear !== selectedYear) return;
+            
+            const key = `${item.producto}||${item.super}||${item.marca}`;
+            
+            // Solo procesar combinaciones válidas (≥3 registros en este año)
+            if (!validCombinations.has(key)) return;
+            
+            // Solo si tiene variación para este año
+            if (item[yearField] === null || item[yearField] === undefined) return;
+            
+            const currentDate = new Date(item.fecha);
+            
+            // Tomar el registro más reciente
+            if (!latestVariations.has(key) || currentDate > latestVariations.get(key).fecha) {
+                latestVariations.set(key, {
+                    fecha: currentDate,
+                    variacion: item[yearField]
+                });
+            }
+        });
+        
+        const validVariations = Array.from(latestVariations.values()).map(v => v.variacion);
+        const validProductsCount = latestVariations.size;
         
         result = {
             title: `Inflación ${selectedYear}`,
@@ -1612,7 +1641,7 @@ function updateInflationStats() {
         };
     }
     
-    // Mostrar resultados
+    // Mostrar resultados (MANTIENE EL MISMO HTML QUE TU VERSIÓN ORIGINAL)
     statsContainer.innerHTML = `
         <div class="inflation-stat-card highlight">
             <div class="inflation-stat-icon">
